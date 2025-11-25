@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,6 +40,17 @@ class CommandService : LifecycleService() {
 
                 // Corrected binary name
                 const val BINARY_NAME = "slipstream-client"
+
+                // Broadcast actions
+                const val ACTION_STATUS_UPDATE = "com.example.commandexecutor.STATUS_UPDATE"
+                const val ACTION_ERROR = "com.example.commandexecutor.ERROR"
+
+                // Broadcast extras
+                const val EXTRA_STATUS_SLIPSTREAM = "status_slipstream"
+                // FIXED: Removed the extraneous 'val' keyword that caused the compilation error
+                const val EXTRA_STATUS_SSH = "status_ssh"
+                const val EXTRA_ERROR_MESSAGE = "error_message"
+                const val EXTRA_ERROR_OUTPUT = "error_output"
             }
 
             override fun onCreate() {
@@ -61,7 +73,10 @@ class CommandService : LifecycleService() {
                 // 2. Execute commands on a background thread (Dispatchers.IO)
                 CoroutineScope(Dispatchers.IO).launch {
 
-                    // --- UPDATED: Only clean up the unique slipstream-client process ---
+                    // Send initial waiting status to UI
+                    sendStatusUpdate(slipstreamStatus = "Cleaning up...", sshStatus = "Waiting...")
+
+                    // Clean up any previous, lingering slipstream-client processes
                     cleanUpLingeringProcesses()
 
                     val binaryPath = copyBinaryToFilesDir(BINARY_NAME)
@@ -70,6 +85,7 @@ class CommandService : LifecycleService() {
                         executeCommands(binaryPath, ipAddress, domainName)
                     } else {
                         Log.e(TAG, "Failed to prepare '$BINARY_NAME' binary for execution.")
+                        sendError("Binary Error", "Failed to prepare '$BINARY_NAME' binary for execution.")
                     }
                 }
 
@@ -93,10 +109,30 @@ class CommandService : LifecycleService() {
             private fun buildForegroundNotification() = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Slipstream Tunnel Running")
             .setContentText("Establishing DNS/QUIC covert channel...")
-            .setSmallIcon(R.mipmap.ic_launcher)
+            // Using a reliable system icon to prevent the crash observed in the logs
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setOnlyAlertOnce(true)
             .build()
+
+            // --- Broadcast Helpers ---
+
+            private fun sendStatusUpdate(slipstreamStatus: String? = null, sshStatus: String? = null) {
+                val intent = Intent(ACTION_STATUS_UPDATE)
+                slipstreamStatus?.let { intent.putExtra(EXTRA_STATUS_SLIPSTREAM, it) }
+                sshStatus?.let { intent.putExtra(EXTRA_STATUS_SSH, it) }
+                LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+            }
+
+            private fun sendError(message: String, output: String) {
+                val intent = Intent(ACTION_ERROR).apply {
+                    putExtra(EXTRA_ERROR_MESSAGE, message)
+                    putExtra(EXTRA_ERROR_OUTPUT, output)
+                }
+                LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+                // Also ensure UI is set to stopped/failed state after error
+                sendStatusUpdate(slipstreamStatus = "Failed", sshStatus = "Stopped")
+            }
 
             // --- Binary Preparation ---
 
@@ -186,21 +222,23 @@ class CommandService : LifecycleService() {
 
             /**
              * Executes the two required shell commands.
-             * @param slipstreamClientPath The full path to the bundled slipstream-client binary.
-             * @param ipAddress The user-provided IP address.
-             * @param domainName The user-provided domain name.
              */
             private suspend fun executeCommands(
                 slipstreamClientPath: String,
                 ipAddress: String,
                 domainName: String
             ) {
+                // Log the actual received inputs again
+                Log.i(TAG, "Starting command execution with IP: '$ipAddress' and Domain: '$domainName'")
+
+                sendStatusUpdate(slipstreamStatus = "Starting...", sshStatus = "Waiting...")
 
                 // Command 1: Execution of the bundled slipstream-client binary
+                // Note: The empty IP in the log caused the client to execute as "--resolver=:53", which is invalid.
                 val command1 = listOf(
                     slipstreamClientPath,
                     "--congestion-control=bbr",
-                    "--resolver=$ipAddress:53",
+                    "--resolver=$ipAddress:53", // $ipAddress will now correctly be passed if non-empty
                     "--domain=$domainName"
                 )
 
@@ -212,10 +250,11 @@ class CommandService : LifecycleService() {
                 if (slipstreamResult.first.contains(confirmationMessage, ignoreCase = false)) {
                     Log.i(TAG, "$BINARY_NAME output confirmed successful connection. Proceeding with ssh.")
 
+                    sendStatusUpdate(slipstreamStatus = "Running", sshStatus = "Starting...")
+
                     delay(500L) // Wait for 500 milliseconds for port stability
 
                     // Command 2: Execution of system-preinstalled ssh binary, wrapped in 'su -c'.
-                    // Removed -f flag to keep ssh running in the foreground as a child of 'su', allowing us to kill it easily.
                     val sshArgs = "-p 5201 -ND 3080 root@localhost"
                     val shellCommand = "ssh $sshArgs"
 
@@ -229,20 +268,29 @@ class CommandService : LifecycleService() {
                     val sshResult = startLongRunningProcess(command2, "ssh", null, null)
                     sshProcess = sshResult.second
 
+                    // Check if ssh failed immediately
+                    if (sshProcess?.isAlive == true) {
+                        sendStatusUpdate(sshStatus = "Running")
+                    } else {
+                        sendError("SSH Start Error", "SSH tunnel failed to start. Output:\n${sshResult.first}")
+                        // Since SSH failed, kill slipstream and stop service
+                        killProcess(slipstreamProcess, BINARY_NAME)
+                        stopSelf()
+                    }
+
+
                 } else {
-                    Log.w(TAG, "$BINARY_NAME output did NOT contain \"$confirmationMessage\" within 2000ms. Stopping service.")
+                    val errorMessage = "$BINARY_NAME failed to confirm connection."
+                    Log.w(TAG, errorMessage)
+                    sendError(errorMessage, slipstreamResult.first) // Send error with output
                     // Since the slipstream-client failed to connect or time out, we should stop it immediately.
                     killProcess(slipstreamProcess, BINARY_NAME)
-                    // Stop the service itself since the tunnel setup failed.
                     stopSelf()
                 }
             }
 
             /**
              * Starts a shell command, reads initial output with an optional timeout, and returns the Process object.
-             * @param readTimeoutMillis If provided, the function returns as soon as the timeout expires or the success message is found.
-             * @param successMessage Optional string to look for in the output to signal early success.
-             * @return A tuple of (output, Process). Output contains all text read up to the exit/timeout.
              */
             private suspend fun startLongRunningProcess(
                 command: List<String>,
@@ -277,7 +325,6 @@ class CommandService : LifecycleService() {
                         }
                     } else {
                         // For long-running processes like ssh, we only check if it started correctly
-                        // and return the Process object quickly to allow background execution.
                         if (process.isAlive) {
                             Log.d(TAG, "$logTag is running in the background. Stopping output read.")
                         } else {
@@ -343,11 +390,15 @@ class CommandService : LifecycleService() {
              */
             private fun stopBackgroundProcesses() {
                 Log.i(TAG, "Stopping foreground processes...")
-                // Kill slipstream-client
+
+                // 1. Send immediate stopped status to UI
+                sendStatusUpdate(slipstreamStatus = "Stopped", sshStatus = "Stopped")
+
+                // 2. Kill slipstream-client
                 killProcess(slipstreamProcess, BINARY_NAME)
                 slipstreamProcess = null
 
-                // Kill ssh/su wrapper (relying on the stored process reference to kill only the intended tunnel)
+                // 3. Kill ssh/su wrapper (relying on the stored process reference to kill only the intended tunnel)
                 killProcess(sshProcess, "ssh")
                 sshProcess = null
             }

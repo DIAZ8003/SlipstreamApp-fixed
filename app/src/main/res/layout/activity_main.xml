@@ -12,54 +12,125 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Command Runner Configuration"
+        android:text="Slipstream Tunnel Configuration"
         android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="@android:color/black"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="24dp" />
 
-    <!-- IP Address Input -->
-    <EditText
-        android:id="@+id/ip_input"
+    <!-- Status Indicators Section -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter IP Address (e.g., 8.8.8.8)"
-        android:inputType="text"
-        android:minHeight="48dp"
+        android:orientation="vertical"
         android:padding="12dp"
-        android:background="@drawable/edittext_background"
-        android:layout_marginBottom="16dp" />
+        android:background="@drawable/status_background"
+        android:layout_marginBottom="24dp">
 
-    <!-- Domain Input -->
-    <EditText
-        android:id="@+id/domain_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter Domain Name (e.g., example.com)"
-        android:inputType="text"
-        android:minHeight="48dp"
-        android:padding="12dp"
-        android:background="@drawable/edittext_background"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Service Status"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
 
-    <!-- Button to start the service -->
-    <Button
-        android:id="@+id/start_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Start Service"
-        android:backgroundTint="#4CAF50"
-        android:padding="14dp"
-        android:layout_marginBottom="16dp" />
+        <!-- Slipstream Status -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+            <TextView
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+                android:text="Slipstream:"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/slipstream_status_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="❌"
+                android:textSize="20sp"
+                android:layout_marginEnd="8dp"
+                tools:text="✔"/>
+            <TextView
+                android:id="@+id/slipstream_status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stopped" />
+            </LinearLayout>
 
-    <!-- Button to stop the service -->
-    <Button
-        android:id="@+id/stop_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stop Service"
-        android:backgroundTint="#F44336"
-        android:padding="14dp" />
+            <!-- SSH Status -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:text="SSH Tunnel:"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/ssh_status_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="❌"
+                    android:textSize="20sp"
+                    android:layout_marginEnd="8dp"
+                    tools:text="✔"/>
+                <TextView
+                    android:id="@+id/ssh_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Stopped" />
+                </LinearLayout>
+            </LinearLayout>
 
-    </LinearLayout>
+            <!-- IP Address Input -->
+            <EditText
+                android:id="@+id/ip_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Enter Resolver IP (e.g., 1.1.1.1)"
+                android:inputType="text"
+                android:minHeight="48dp"
+                android:padding="12dp"
+                android:background="@drawable/edittext_background"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Domain Input -->
+            <EditText
+                android:id="@+id/domain_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Enter Domain Name (e.g., example.com)"
+                android:inputType="text"
+                android:minHeight="48dp"
+                android:padding="12dp"
+                android:background="@drawable/edittext_background"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Button to start the service -->
+            <Button
+                android:id="@+id/start_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Start Slipstream Tunnel"
+                android:backgroundTint="#4CAF50"
+                android:padding="14dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Button to stop the service -->
+            <Button
+                android:id="@+id/stop_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Stop Slipstream Tunnel"
+                android:backgroundTint="#F44336"
+                android:padding="14dp" />
+
+            </LinearLayout>
