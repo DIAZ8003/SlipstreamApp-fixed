@@ -1,136 +1,154 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_horizontal"
-    tools:context=".MainActivity">
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                                                   xmlns:app="http://schemas.android.com/apk/res-auto"
+                                                   xmlns:tools="http://schemas.android.com/tools"
+                                                   android:layout_width="match_parent"
+                                                   android:layout_height="match_parent"
+                                                   android:padding="16dp"
+                                                   tools:context=".MainActivity">
 
+    <!-- Title: Uses a theme-aware TextAppearance to ensure text contrast -->
     <TextView
-        android:layout_width="wrap_content"
+        android:id="@+id/title_text"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Slipstream Tunnel Configuration"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="24dp" />
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
-    <!-- Status Indicators Section -->
-    <LinearLayout
-        android:layout_width="match_parent"
+    <!-- New Switch for Tunnel On/Off -->
+    <Switch
+        android:id="@+id/tunnel_switch"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp"
-        android:background="@drawable/status_background"
-        android:layout_marginBottom="24dp">
+        android:text="Turn Tunnel On/Off"
+        android:checked="false"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/title_text"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Service Status"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp"/>
+    <!-- Input 1: Resolver IP Address (Now constrained below the Switch) -->
+    <EditText
+        android:id="@+id/ip_input"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Resolver IP Address (e.g., 1.1.1.1)"
+        android:inputType="textUri"
+        android:minHeight="48dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/tunnel_switch"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
-        <!-- Slipstream Status -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="4dp">
-            <TextView
-                android:layout_width="100dp"
-                android:layout_height="wrap_content"
-                android:text="Slipstream:"
-                android:textStyle="bold" />
-            <TextView
-                android:id="@+id/slipstream_status_indicator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="❌"
-                android:textSize="20sp"
-                android:layout_marginEnd="8dp"
-                tools:text="✔"/>
-            <TextView
-                android:id="@+id/slipstream_status_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Stopped" />
-            </LinearLayout>
+    <!-- Input 2: Domain Name -->
+    <EditText
+        android:id="@+id/domain_input"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="Domain Name (e.g., example.com)"
+        android:inputType="textUri"
+        android:minHeight="48dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/ip_input"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        />
 
-            <!-- SSH Status -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-                <TextView
-                    android:layout_width="100dp"
-                    android:layout_height="wrap_content"
-                    android:text="SSH Tunnel:"
-                    android:textStyle="bold" />
-                <TextView
-                    android:id="@+id/ssh_status_indicator"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="❌"
-                    android:textSize="20sp"
-                    android:layout_marginEnd="8dp"
-                    tools:text="✔"/>
-                <TextView
-                    android:id="@+id/ssh_status_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Stopped" />
-                </LinearLayout>
-            </LinearLayout>
+    <!-- Status Section Title -->
+    <TextView
+        android:id="@+id/status_section_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Service Status"
+        android:textSize="18sp"
+        android:textStyle="italic"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/domain_input"
+        app:layout_constraintStart_toStartOf="parent"
+        />
 
-            <!-- IP Address Input -->
-            <EditText
-                android:id="@+id/ip_input"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Enter Resolver IP (e.g., 1.1.1.1)"
-                android:inputType="text"
-                android:minHeight="48dp"
-                android:padding="12dp"
-                android:background="@drawable/edittext_background"
-                android:layout_marginBottom="16dp" />
+    <!-- Slipstream Status Row -->
+    <TextView
+        android:id="@+id/slipstream_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Slipstream Client:"
+        android:layout_marginTop="16dp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@id/status_section_title"
+        app:layout_constraintStart_toStartOf="parent"
+        />
 
-            <!-- Domain Input -->
-            <EditText
-                android:id="@+id/domain_input"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Enter Domain Name (e.g., example.com)"
-                android:inputType="text"
-                android:minHeight="48dp"
-                android:padding="12dp"
-                android:background="@drawable/edittext_background"
-                android:layout_marginBottom="24dp" />
+    <TextView
+        android:id="@+id/slipstream_status_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="-"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@id/slipstream_label"
+        app:layout_constraintTop_toTopOf="@id/slipstream_label"
+        app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
+        />
 
-            <!-- Button to start the service -->
-            <Button
-                android:id="@+id/start_button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Start Slipstream Tunnel"
-                android:backgroundTint="#4CAF50"
-                android:padding="14dp"
-                android:layout_marginBottom="16dp" />
+    <TextView
+        android:id="@+id/slipstream_status_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="Stopped"
+        app:layout_constraintStart_toEndOf="@id/slipstream_status_indicator"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/slipstream_label"
+        app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
+        />
 
-            <!-- Button to stop the service -->
-            <Button
-                android:id="@+id/stop_button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Stop Slipstream Tunnel"
-                android:backgroundTint="#F44336"
-                android:padding="14dp" />
+    <!-- SSH Status Row -->
+    <TextView
+        android:id="@+id/ssh_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SSH Tunnel:"
+        android:layout_marginTop="8dp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@id/slipstream_label"
+        app:layout_constraintStart_toStartOf="parent"
+        />
 
-            </LinearLayout>
+    <TextView
+        android:id="@+id/ssh_status_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:text="-"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@id/ssh_label"
+        app:layout_constraintTop_toTopOf="@id/ssh_label"
+        app:layout_constraintBottom_toBottomOf="@id/ssh_label"
+        />
+
+    <TextView
+        android:id="@+id/ssh_status_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="Stopped"
+        app:layout_constraintStart_toEndOf="@id/ssh_status_indicator"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/ssh_label"
+        app:layout_constraintBottom_toBottomOf="@id/ssh_label"
+        />
+
+    <!-- The original Start and Stop buttons have been removed. -->
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
