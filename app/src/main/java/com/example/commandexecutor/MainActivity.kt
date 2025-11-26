@@ -25,8 +25,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ipInput: EditText
         private lateinit var domainInput: EditText
             private lateinit var tunnelSwitch: Switch
-                // Removed monitoringCheckbox and thresholdInput references
-
                 // UI status elements
                 private lateinit var slipstreamStatusIndicator: TextView
                     private lateinit var slipstreamStatusText: TextView
@@ -38,7 +36,7 @@ class MainActivity : AppCompatActivity() {
                                     // Flag to prevent infinite loop when programmatically changing the switch state
                                     private var isUpdatingSwitch = false
 
-                                    // Keys for SharedPreferences (Monitoring keys removed)
+                                    // Keys for SharedPreferences
                                     private val PREF_IP_ADDRESS = "pref_ip_address"
                                     private val PREF_DOMAIN_NAME = "pref_domain_name"
 
@@ -100,7 +98,6 @@ class MainActivity : AppCompatActivity() {
                                         ipInput = findViewById(R.id.ip_input)
                                         domainInput = findViewById(R.id.domain_input)
                                         tunnelSwitch = findViewById(R.id.tunnel_switch)
-                                        // Monitoring UI elements were removed from layout
 
                                         // Initialize UI status components
                                         slipstreamStatusIndicator = findViewById(R.id.slipstream_status_indicator)
@@ -155,7 +152,6 @@ class MainActivity : AppCompatActivity() {
                                         val editor = sharedPreferences.edit()
                                         editor.putString(PREF_IP_ADDRESS, ipInput.text.toString().trim())
                                         editor.putString(PREF_DOMAIN_NAME, domainInput.text.toString().trim())
-                                        // Monitoring preferences removal confirmed
                                         editor.apply()
                                         Log.d(TAG, "Saved configuration to SharedPreferences.")
                                     }
@@ -177,11 +173,6 @@ class MainActivity : AppCompatActivity() {
                                         val ipAddress = ipInput.text.toString().trim()
                                         val domainName = domainInput.text.toString().trim()
 
-                                        // Hardcode monitoring settings since they are no longer user-configurable
-                                        val monitoringEnabled = false
-                                        val monitoringThreshold = 0L
-
-
                                         if (ipAddress.isBlank() || domainName.isBlank()) {
                                             Toast.makeText(this, "IP Address and Domain are required for slipstream-client.", Toast.LENGTH_LONG).show()
 
@@ -192,14 +183,11 @@ class MainActivity : AppCompatActivity() {
                                             return
                                         }
 
-                                        Log.i(TAG, "Starting service. Monitor: $monitoringEnabled, Threshold: $monitoringThreshold ms (Hardcoded)")
+                                        Log.i(TAG, "Starting service.")
 
                                         val serviceIntent = Intent(this, CommandService::class.java).apply {
                                             putExtra(CommandService.EXTRA_IP_ADDRESS, ipAddress)
                                             putExtra(CommandService.EXTRA_DOMAIN, domainName)
-                                            // Pass hardcoded values for Service compatibility
-                                            putExtra(CommandService.EXTRA_MONITORING_ENABLED, monitoringEnabled)
-                                            putExtra(CommandService.EXTRA_MONITORING_THRESHOLD, monitoringThreshold)
                                         }
 
                                         ContextCompat.startForegroundService(this, serviceIntent)
