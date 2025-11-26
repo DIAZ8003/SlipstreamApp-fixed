@@ -7,7 +7,9 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
@@ -31,10 +33,9 @@ import kotlin.coroutines.CoroutineContext
 // Data class to hold the execution result (for clarity in complex logic)
 data class CommandResult(val exitCode: Int, val output: String)
 
-// CommandService now implements CoroutineScope to correctly handle 'launch' and 'isActive'
 class CommandService : LifecycleService(), CoroutineScope {
 
-    // Define the CoroutineScope for the service lifecycle (SupervisorJob to prevent child failures from killing others)
+    // Define the CoroutineScope for the service lifecycle (used for long-running monitoring/output)
     private val job = SupervisorJob()
     override val coroutineContext: CoroutineContext = job + Dispatchers.IO
 
@@ -42,39 +43,36 @@ class CommandService : LifecycleService(), CoroutineScope {
     private val NOTIFICATION_CHANNEL_ID = "CommandServiceChannel"
     private val NOTIFICATION_ID = 101
 
+    // FIX: Standard Android Handler for reliable delayed execution on the main thread
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     // Global variables for tunnel management
     private var slipstreamProcess: Process? = null
         private var sshProcess: Process? = null
             private var processOutputReaderJob: Job? = null
-                // New: Job for periodic health monitoring
                 private var tunnelMonitorJob: Job? = null
 
-                    // Mutex to prevent simultaneous starting/stopping/restarting
                     private val tunnelMutex = Mutex()
 
                     private var ipAddressConfig: String = ""
                         private var domainNameConfig: String = ""
 
                             companion object {
-                                // Inputs & Config
                                 const val EXTRA_IP_ADDRESS = "ip_address"
                                 const val EXTRA_DOMAIN = "domain_name"
 
-                                // Corrected binary name
                                 const val BINARY_NAME = "slipstream-client"
 
-                                // Broadcast actions
                                 const val ACTION_STATUS_UPDATE = "com.example.commandexecutor.STATUS_UPDATE"
                                 const val ACTION_ERROR = "com.example.commandexecutor.ERROR"
+                                const val ACTION_REQUEST_STATUS = "com.example.commandexecutor.REQUEST_STATUS"
 
-                                // Broadcast extras
                                 const val EXTRA_STATUS_SLIPSTREAM = "status_slipstream"
                                 const val EXTRA_STATUS_SSH = "status_ssh"
                                 const val EXTRA_ERROR_MESSAGE = "error_message"
                                 const val EXTRA_ERROR_OUTPUT = "error_output"
 
-                                // Monitoring interval (1 minute)
-                                private const val MONITOR_INTERVAL_MS = 60000L
+                                private const val MONITOR_INTERVAL_MS = 1000L
                             }
 
                             override fun onCreate() {
@@ -85,18 +83,30 @@ class CommandService : LifecycleService(), CoroutineScope {
                             override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
                                 super.onStartCommand(intent, flags, startId)
 
-                                // Retrieve and SAVE configuration into member variables
+                                // --- FIX: Handle the status request using Handler for reliable delay ---
+                                if (intent?.action == ACTION_REQUEST_STATUS) {
+
+                                    // 1. Immediate Status Update (First attempt)
+                                    sendCurrentStatus(logTag = "Immediate")
+
+                                    // 2. Delayed Status Update (Workaround for UI race condition)
+                                    mainHandler.postDelayed({
+                                        // This runnable will execute on the main thread after 500ms
+                                        sendCurrentStatus(logTag = "Delayed (500ms)")
+                                    }, 500L)
+
+                                    return START_STICKY
+                                }
+
+                                // --- Original Service Starting Logic Below ---
+
                                 ipAddressConfig = intent?.getStringExtra(EXTRA_IP_ADDRESS) ?: ""
                                 domainNameConfig = intent?.getStringExtra(EXTRA_DOMAIN) ?: ""
                                 Log.d(TAG, "Service started. IP: $ipAddressConfig, Domain: $domainNameConfig")
 
-                                // Start foreground service with clickable notification
                                 startForeground(NOTIFICATION_ID, buildForegroundNotification())
 
-                                // Use the service's CoroutineScope (Dispatchers.IO) via 'launch'
-                                // Use an immediate launch to start the sequence
                                 launch {
-                                    // Start the tunnel sequence
                                     startTunnelSequence(ipAddressConfig, domainNameConfig)
                                 }
 
@@ -104,17 +114,38 @@ class CommandService : LifecycleService(), CoroutineScope {
                             }
 
                             /**
+                             * Helper function to check process status and broadcast it.
+                             */
+                            private fun sendCurrentStatus(logTag: String) {
+                                // Ensure this is called on a thread where process objects are stable (it's safe here)
+                                val slipstreamAlive = slipstreamProcess?.isAlive == true
+                                val sshAlive = sshProcess?.isAlive == true
+
+                                Log.e(TAG, "--- STATUS REQUEST $logTag RECEIVED ---")
+                                Log.e(TAG, "Process Check: Slipstream is Alive: $slipstreamAlive, SSH is Alive: $sshAlive")
+
+                                val slipstreamStatus = if (slipstreamAlive) "Running" else "Stopped"
+                                val sshStatus = if (sshAlive) "Running" else "Stopped"
+
+                                sendStatusUpdate(slipstreamStatus = slipstreamStatus, sshStatus = sshStatus)
+
+                                Log.e(TAG, "Status broadcasted ($logTag): Slipstream=$slipstreamStatus, SSH=$sshStatus")
+                            }
+
+                            // --- Core Tunnel Logic (Unchanged from previous version) ---
+
+                            /**
                              * The main execution sequence: cleans up, copies binary, and starts the tunnel.
                              */
                             private suspend fun startTunnelSequence(ipAddress: String, domainName: String) {
-                                // We use a Mutex to ensure only one sequence can run at a time (e.g., if onStartCommand is called twice)
                                 tunnelMutex.withLock {
 
                                     sendStatusUpdate(slipstreamStatus = "Cleaning up...", sshStatus = "Waiting...")
 
-                                    // Cancel existing monitoring if restarting
+                                    // Cancel existing monitoring and output reading before starting new processes
                                     tunnelMonitorJob?.cancel()
-                                    cleanUpLingeringProcesses() // Use killall for general cleanup
+                                    processOutputReaderJob?.cancel()
+                                    cleanUpLingeringProcesses()
 
                                     val binaryPath = copyBinaryToFilesDir(BINARY_NAME)
                                     if (binaryPath != null) {
@@ -125,6 +156,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                                             // Start periodic health monitoring only if successful
                                             tunnelMonitorJob = launch { startTunnelMonitor() }
                                         } else {
+                                            // If tunnel failed to start, stop the service
                                             stopSelf()
                                         }
 
@@ -140,17 +172,17 @@ class CommandService : LifecycleService(), CoroutineScope {
                              * Checks if both processes are running. If not, it attempts a full restart.
                              */
                             private suspend fun startTunnelMonitor() {
-                                Log.d(TAG, "Starting tunnel monitor job.")
+                                //Log.d(TAG, "Starting tunnel monitor job.")
                                 while (isActive) {
-                                    delay(MONITOR_INTERVAL_MS) // Wait 1 minute
+                                    delay(MONITOR_INTERVAL_MS)
 
                                     val slipstreamAlive = slipstreamProcess?.isAlive == true
                                     val sshAlive = sshProcess?.isAlive == true
 
-                                    Log.d(TAG, "Monitor Check: Slipstream is Alive: $slipstreamAlive, SSH is Alive: $sshAlive")
+                                    //Log.d(TAG, "Monitor Check: Slipstream is Alive: $slipstreamAlive, SSH is Alive: $sshAlive")
 
                                     if (slipstreamAlive && sshAlive) {
-                                        // All good, update status to reassure UI
+                                        // All good, update status to reassure UI and trigger UI refresh
                                         sendStatusUpdate(slipstreamStatus = "Running", sshStatus = "Running")
                                     } else if (!slipstreamAlive || !sshAlive) {
                                         // Critical failure: one or both processes died unexpectedly.
@@ -160,9 +192,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                                             "Slipstream status: ${if (slipstreamAlive) "Running" else "Dead"}. SSH status: ${if (sshAlive) "Running" else "Dead"}."
                                         )
 
-                                        // Immediately attempt restart with current configuration
-                                        // This call uses the service's main scope but respects the Mutex
-                                        // Note: The monitor thread will pause here waiting for the Mutex.
+                                        // Attempt restart with current configuration
                                         startTunnelSequence(ipAddressConfig, domainNameConfig)
                                     }
                                 }
@@ -170,22 +200,18 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                             /**
                              * Executes the two shell commands: slipstream-client and ssh.
-                             * Returns true if successful, false otherwise.
                              */
                             private suspend fun executeCommands(
                                 slipstreamClientPath: String,
                                 ipAddress: String,
                                 domainName: String
                             ): Boolean {
-                                // Stop any running jobs before starting new processes
                                 processOutputReaderJob?.cancel()
                                 processOutputReaderJob = null
 
                                 Log.i(TAG, "Starting command execution with IP: '$ipAddress' and Domain: '$domainName'")
-
                                 sendStatusUpdate(slipstreamStatus = "Starting...", sshStatus = "Waiting...")
 
-                                // Command 1: slipstream-client
                                 val command1 = listOf(
                                     slipstreamClientPath,
                                     "--congestion-control=bbr",
@@ -193,7 +219,6 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     "--domain=$domainName"
                                 )
 
-                                // 1. Start slipstream-client and wait for connection confirmation (2000ms timeout)
                                 val confirmationMessage = "Connection confirmed."
                                 val slipstreamStartResult = startProcessWithOutputCheck(command1, BINARY_NAME, 2000L, confirmationMessage)
                                 slipstreamProcess = slipstreamStartResult.second
@@ -201,29 +226,24 @@ class CommandService : LifecycleService(), CoroutineScope {
                                 if (slipstreamStartResult.first.contains(confirmationMessage, ignoreCase = false)) {
                                     Log.i(TAG, "$BINARY_NAME output confirmed successful connection. Proceeding with ssh.")
 
-                                    // Start job to monitor slipstream's ongoing output (only for live logging)
                                     processOutputReaderJob = launch { readProcessOutput(slipstreamProcess!!, BINARY_NAME) }
-
                                     sendStatusUpdate(slipstreamStatus = "Running", sshStatus = "Starting...")
-
                                     delay(500L)
 
-                                    // Command 2: ssh tunnel
                                     val sshArgs = "-p 5201 -ND 3080 root@localhost"
                                     val shellCommand = "ssh $sshArgs"
                                     val command2 = listOf("su", "-c", shellCommand)
 
-                                    // 2. Start ssh (no read timeout, we just start and let it run)
                                     val sshStartResult = startProcessWithOutputCheck(command2, "ssh", null, null)
                                     sshProcess = sshStartResult.second
 
                                     if (sshProcess?.isAlive == true) {
-                                        sendStatusUpdate(sshStatus = "Running")
+                                        // Explicitly set both statuses to Running for definitive broadcast
+                                        sendStatusUpdate(slipstreamStatus = "Running", sshStatus = "Running")
                                         return true
                                     } else {
                                         sendError("SSH Start Error", "SSH tunnel failed to start. Output:\n${sshStartResult.first}")
-                                        killProcess(slipstreamProcess, BINARY_NAME) // Kill slipstream if ssh failed
-                                        // Do NOT stopSelf yet, let the outer scope handle the stopSelf or restart
+                                        killProcess(slipstreamProcess, BINARY_NAME)
                                         return false
                                     }
                                 } else {
@@ -231,7 +251,6 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     Log.w(TAG, errorMessage)
                                     sendError(errorMessage, slipstreamStartResult.first)
                                     killProcess(slipstreamProcess, BINARY_NAME)
-                                    // Do NOT stopSelf yet, let the outer scope handle the stopSelf or restart
                                     return false
                                 }
                             }
@@ -270,9 +289,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                                             true
                                         }
                                     } else {
-                                        if (process.isAlive) {
-                                            Log.d(TAG, "$logTag is running in the background.")
-                                        } else {
+                                        if (!process.isAlive) {
                                             var line: String?
                                             while (reader.readLine().also { line = it } != null) {
                                                 output.append(line).append('\n')
@@ -285,44 +302,38 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error executing $logTag command: ${e.message}", e)
-                                    // Return a dummy process to avoid crashing, but include error in output
                                     return Pair("Execution Error: ${e.message}", ProcessBuilder("echo", "error").start())
                                 }
                             }
 
                             /**
-                             * Coroutine job to read the slipstream process output and log it (the "Live Output" feature).
+                             * Coroutine job to read the process output and log it.
                              */
                             private suspend fun readProcessOutput(process: Process, logTag: String) {
                                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                                 try {
                                     var line: String?
-                                    // Continue while coroutine is active AND process is alive
                                     while (isActive && process.isAlive) {
                                         if (reader.ready()) {
                                             line = reader.readLine()
                                             if (line != null) {
-                                                Log.d(TAG, "$logTag Live Output: $line") // Log all output
+                                                Log.d(TAG, "$logTag Live Output: $line")
                                             }
                                         } else {
-                                            // Short delay to prevent busy-waiting if nothing is ready
                                             delay(10)
                                         }
                                     }
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error reading $logTag output: ${e.message}", e)
                                 } finally {
-                                    // Check if the process died while monitoring, if so, trigger a failure check via monitor job
-                                    if (process.isAlive) {
-                                        Log.i(TAG, "$logTag output reader job finished gracefully.")
-                                    } else {
+                                    if (!process.isAlive) {
                                         Log.w(TAG, "$logTag died unexpectedly. Monitor job should detect this shortly.")
                                     }
                                     reader.close()
                                 }
                             }
 
-                            // --- Cleanup & Helpers ---
+                            // --- Cleanup & Status Management ---
 
                             private fun createNotificationChannel() {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -336,17 +347,11 @@ class CommandService : LifecycleService(), CoroutineScope {
                                 }
                             }
 
-                            /**
-                             * Builds the foreground notification, including a PendingIntent to open MainActivity.
-                             */
                             private fun buildForegroundNotification(): Notification {
-                                // Intent to launch MainActivity when the notification is tapped
                                 val notificationIntent = Intent(this, Class.forName("com.example.commandexecutor.MainActivity")).apply {
-                                    // FIX: Use FLAG_ACTIVITY_SINGLE_TOP so clicking the notification brings the existing Activity instance to the foreground
                                     addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                 }
 
-                                // Define PendingIntent flags based on Android version
                                 val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                                 } else {
@@ -360,14 +365,11 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     pendingIntentFlags
                                 )
 
-                                // TODO: Replace with a real icon
-                                val smallIconRes = android.R.drawable.ic_dialog_info
-
                                 return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                                 .setContentTitle("Slipstream Tunnel Running")
                                 .setContentText("Tap to view configuration or stop the service.")
-                                .setSmallIcon(smallIconRes)
-                                .setContentIntent(pendingIntent) // Set the intent to be triggered on click
+                                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                                .setContentIntent(pendingIntent)
                                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                                 .setOnlyAlertOnce(true)
                                 .build()
@@ -386,7 +388,6 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     putExtra(EXTRA_ERROR_OUTPUT, output)
                                 }
                                 LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-                                // Note: We don't call sendStatusUpdate here, as executeCommands/monitor will handle the final status
                             }
 
                             private fun copyBinaryToFilesDir(binaryName: String): String? {
@@ -412,13 +413,8 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                             private fun cleanUpLingeringProcesses() {
                                 Log.w(TAG, "Attempting to clean up lingering processes using killall...")
-                                // Kill slipstream binary
                                 val killallSlipstream = listOf("su", "-c", "killall -9 ${BINARY_NAME}")
                                 executeCleanupCommand(killallSlipstream, "killall ${BINARY_NAME}")
-
-                                // Kill specific ssh instance running on the expected port (optional, but good practice)
-                                // Finding the specific ssh process started by the app is hard, but we rely on killing the slipstream pipe
-                                // and expecting the ssh over the pipe to die shortly. The next call to start ssh will fail if it's still running.
                             }
 
                             private fun executeCleanupCommand(command: List<String>, logTag: String) {
@@ -429,7 +425,6 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                                     val exited = process.waitFor(1, TimeUnit.SECONDS)
                                     if (exited) {
-                                        // killall returns 1 if no process was found, which is OK.
                                         if (process.exitValue() != 0) {
                                             Log.d(TAG, "Cleanup command $logTag returned non-zero exit code, likely meaning no processes were running.")
                                         }
@@ -443,16 +438,13 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                             /**
                              * Terminates a process, waiting up to 1 second for graceful exit, then forcing.
-                             * @return true if the process is no longer alive, false otherwise.
                              */
                             private fun killProcess(process: Process?, tag: String): Boolean {
                                 if (process != null && process.isAlive) {
                                     process.destroy()
                                     try {
-                                        // Wait for graceful termination (synchronous and blocking)
                                         if (!process.waitFor(1000, TimeUnit.MILLISECONDS)) {
                                             process.destroyForcibly()
-                                            // Wait again for forceful termination
                                             if (!process.waitFor(100, TimeUnit.MILLISECONDS)) {
                                                 Log.e(TAG, "$tag process **FAILED** to terminate forcibly. It may be orphaned.")
                                                 return false
@@ -468,7 +460,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                                         return false
                                     }
                                 }
-                                return true // Process was null or not alive, so it's "stopped"
+                                return true
                             }
 
                             override fun onBind(intent: Intent): IBinder? {
@@ -479,6 +471,9 @@ class CommandService : LifecycleService(), CoroutineScope {
                             override fun onDestroy() {
                                 // Cancel the job to stop all coroutines launched in this scope
                                 job.cancel()
+                                // Stop any pending handler messages
+                                mainHandler.removeCallbacksAndMessages(null)
+
                                 stopBackgroundProcesses()
                                 super.onDestroy()
                                 Log.d(TAG, "Command Service destroyed.")
@@ -486,20 +481,16 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                             /**
                              * Stops all running processes and coroutines.
-                             * This function should run synchronously (on the main thread if called from onDestroy).
                              */
                             private fun stopBackgroundProcesses() {
                                 Log.i(TAG, "Stopping foreground processes and coroutines...")
 
-                                // 1. Cancel jobs: monitor and output reader
                                 tunnelMonitorJob?.cancel()
                                 processOutputReaderJob?.cancel()
 
-                                // 2. Kill processes (blocking calls)
                                 val sshKilled = killProcess(sshProcess, "ssh")
                                 val slipstreamKilled = killProcess(slipstreamProcess, BINARY_NAME)
 
-                                // 3. Update UI based on actual termination result (ensuring UI is updated AFTER kill attempt)
                                 val finalSlipstreamStatus = if (slipstreamKilled) "Stopped" else "Failed to Stop"
                                 val finalSshStatus = if (sshKilled) "Stopped" else "Failed to Stop"
 
@@ -509,7 +500,6 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     Log.e(TAG, "CRITICAL: One or more processes failed to stop! Slipstream: $finalSlipstreamStatus, SSH: $finalSshStatus")
                                 }
 
-                                // Clear references
                                 slipstreamProcess = null
                                 sshProcess = null
                                 processOutputReaderJob = null
