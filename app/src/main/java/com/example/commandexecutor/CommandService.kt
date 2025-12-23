@@ -222,7 +222,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                                     sendStatusUpdate(slipstreamStatus = "Running", sshStatus = "Starting...")
                                     delay(1000L)
 
-                                    val sshArgs = "-p 5201 -ND 3080 root@localhost"
+                                    val sshArgs = "-o ServerAliveInterval=60 ServerAliveCountMax=1000 -p 5201 -ND 3080 root@localhost"
                                     val shellCommand = "ssh $sshArgs"
                                     val command2 = listOf("su", "-c", shellCommand)
 
