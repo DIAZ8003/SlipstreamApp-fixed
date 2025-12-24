@@ -12,28 +12,15 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Slipstream Tunnel Configuration"
+        android:text="Slipstream Tunnel"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Switch
-        android:id="@+id/tunnel_switch"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:checked="false"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:text="Turn Tunnel On/Off"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/title_text" />
-
     <LinearLayout
-        android:id="@+id/resolver_header"
+        android:id="@+id/profile_management_layout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -41,123 +28,176 @@
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tunnel_switch">
+        app:layout_constraintTop_toBottomOf="@id/title_text">
 
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Resolvers (IP Addresses)"
-            android:textStyle="italic" />
-
-        <Button
-            android:id="@+id/add_resolver_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Add" />
+            android:text="Profile: "
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/profile_spinner"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/add_profile_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Add Profile"
+            android:src="@android:drawable/ic_menu_add" />
+
+        <ImageButton
+            android:id="@+id/delete_profile_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Delete Profile"
+            android:src="@android:drawable/ic_menu_delete" />
         </LinearLayout>
 
-        <ScrollView
-            android:id="@+id/resolver_scroll"
+        <Switch
+            android:id="@+id/tunnel_switch"
             android:layout_width="0dp"
-            android:layout_height="150dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:checked="false"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:text="Turn Tunnel On/Off"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/resolver_header">
+            app:layout_constraintTop_toBottomOf="@id/profile_management_layout" />
 
-            <LinearLayout
-                android:id="@+id/resolvers_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-            </ScrollView>
+        <LinearLayout
+            android:id="@+id/resolver_header"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tunnel_switch">
 
-            <EditText
-                android:id="@+id/domain_input"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:hint="Domain Name (e.g., example.com)"
-                android:inputType="textUri"
-                android:minHeight="48dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/resolver_scroll" />
+                android:layout_weight="1"
+                android:text="Resolvers (IP Addresses)"
+                android:textStyle="italic" />
 
-            <TextView
-                android:id="@+id/status_section_title"
+            <Button
+                android:id="@+id/add_resolver_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="Service Status"
-                android:textSize="18sp"
-                android:textStyle="italic"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/domain_input" />
+                android:text="Add IP" />
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/slipstream_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Slipstream Client:"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/status_section_title" />
-
-            <TextView
-                android:id="@+id/slipstream_status_indicator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="-"
-                android:textSize="18sp"
-                app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
-                app:layout_constraintStart_toEndOf="@id/slipstream_label"
-                app:layout_constraintTop_toTopOf="@id/slipstream_label" />
-
-            <TextView
-                android:id="@+id/slipstream_status_text"
+            <ScrollView
+                android:id="@+id/resolver_scroll"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Stopped"
-                app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/slipstream_status_indicator"
-                app:layout_constraintTop_toTopOf="@id/slipstream_label" />
-
-            <TextView
-                android:id="@+id/ssh_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="150dp"
                 android:layout_marginTop="8dp"
-                android:text="SSH Tunnel:"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/slipstream_label" />
-
-            <TextView
-                android:id="@+id/ssh_status_indicator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="-"
-                android:textSize="18sp"
-                app:layout_constraintBottom_toBottomOf="@id/ssh_label"
-                app:layout_constraintStart_toEndOf="@id/ssh_label"
-                app:layout_constraintTop_toTopOf="@id/ssh_label" />
-
-            <TextView
-                android:id="@+id/ssh_status_text"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Stopped"
-                app:layout_constraintBottom_toBottomOf="@id/ssh_label"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/ssh_status_indicator"
-                app:layout_constraintTop_toTopOf="@id/ssh_label" />
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/resolver_header">
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                <LinearLayout
+                    android:id="@+id/resolvers_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+                </ScrollView>
+
+                <EditText
+                    android:id="@+id/domain_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="Domain Name (e.g., example.com)"
+                    android:inputType="textUri"
+                    android:minHeight="48dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/resolver_scroll" />
+
+                <TextView
+                    android:id="@+id/status_section_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="Service Status"
+                    android:textSize="18sp"
+                    android:textStyle="italic"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/domain_input" />
+
+                <TextView
+                    android:id="@+id/slipstream_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Slipstream Client:"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/status_section_title" />
+
+                <TextView
+                    android:id="@+id/slipstream_status_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="-"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
+                    app:layout_constraintStart_toEndOf="@id/slipstream_label"
+                    app:layout_constraintTop_toTopOf="@id/slipstream_label" />
+
+                <TextView
+                    android:id="@+id/slipstream_status_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Stopped"
+                    app:layout_constraintBottom_toBottomOf="@id/slipstream_label"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/slipstream_status_indicator"
+                    app:layout_constraintTop_toTopOf="@id/slipstream_label" />
+
+                <TextView
+                    android:id="@+id/ssh_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="SSH Tunnel:"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/slipstream_label" />
+
+                <TextView
+                    android:id="@+id/ssh_status_indicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="-"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="@id/ssh_label"
+                    app:layout_constraintStart_toEndOf="@id/ssh_label"
+                    app:layout_constraintTop_toTopOf="@id/ssh_label" />
+
+                <TextView
+                    android:id="@+id/ssh_status_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Stopped"
+                    app:layout_constraintBottom_toBottomOf="@id/ssh_label"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/ssh_status_indicator"
+                    app:layout_constraintTop_toTopOf="@id/ssh_label" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
