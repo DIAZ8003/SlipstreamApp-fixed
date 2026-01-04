@@ -13,9 +13,8 @@ object AppLogger {
     }
 
     @Synchronized
-    fun getLogs(): String {
-        return buffer.joinToString("\n")
-    }
+    fun getLogs(): String =
+        buffer.joinToString("\n")
 
     @Synchronized
     fun clear() {
