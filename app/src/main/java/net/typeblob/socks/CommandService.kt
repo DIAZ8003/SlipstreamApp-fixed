@@ -53,15 +53,20 @@ class CommandService : LifecycleService(), CoroutineScope {
         const val EXTRA_RESOLVERS = "extra_ip_addresses_list"
         const val EXTRA_DOMAIN = "domain_name"
         const val EXTRA_KEY_PATH = "private_key_path"
-        const val SLIPSTREAM_BINARY_NAME = "slipstream-client"
-        const val PROXY_CLIENT_BINARY_NAME = "proxy-client"
+
+        // ⚠️ IMPORTANTE: binarios nativos empaquetados en jniLibs
+        const val SLIPSTREAM_BINARY_NAME = "libslipstream.so"
+        const val PROXY_CLIENT_BINARY_NAME = "libproxy.so"
+
         const val ACTION_STATUS_UPDATE = "net.typeblob.socks.STATUS_UPDATE"
         const val ACTION_ERROR = "net.typeblob.socks.ERROR"
         const val ACTION_REQUEST_STATUS = "net.typeblob.socks.REQUEST_STATUS"
+
         const val EXTRA_STATUS_SLIPSTREAM = "status_slipstream"
         const val EXTRA_STATUS_SSH = "status_ssh"
         const val EXTRA_ERROR_MESSAGE = "error_message"
         const val EXTRA_ERROR_OUTPUT = "error_output"
+
         private const val MONITOR_INTERVAL_MS = 2000L
     }
 
@@ -74,51 +79,32 @@ class CommandService : LifecycleService(), CoroutineScope {
         super.onStartCommand(intent, flags, startId)
 
         if (intent?.action == ACTION_REQUEST_STATUS) {
-            sendCurrentStatus("Request")
+            sendCurrentStatus()
             return START_STICKY
         }
 
-        val newResolvers = intent?.getStringArrayListExtra(EXTRA_RESOLVERS) ?: arrayListOf()
-        val newDomain = intent?.getStringExtra(EXTRA_DOMAIN) ?: ""
-        val newPrivateKeyPath = intent?.getStringExtra(EXTRA_KEY_PATH) ?: ""
+        resolversConfig = intent?.getStringArrayListExtra(EXTRA_RESOLVERS) ?: arrayListOf()
+        domainNameConfig = intent?.getStringExtra(EXTRA_DOMAIN) ?: ""
+        privateKeyPath = intent?.getStringExtra(EXTRA_KEY_PATH) ?: ""
 
-        if (newResolvers == resolversConfig &&
-            newDomain == domainNameConfig &&
-            slipstreamProcess?.isAlive == true
-        ) {
-            Log.d(TAG, "Profile unchanged and alive. Skipping.")
-            return START_STICKY
-        }
-
-        resolversConfig = newResolvers
-        domainNameConfig = newDomain
-        privateKeyPath = newPrivateKeyPath
-
-        Log.d(TAG, "Service starting/updating profile. Domain: $domainNameConfig")
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
 
         mainExecutionJob?.cancel()
         mainExecutionJob = launch {
-            try {
-                startTunnelSequence(resolversConfig, domainNameConfig)
-            } catch (e: CancellationException) {
-                Log.d(TAG, "Startup job cancelled")
-            }
+            startTunnelSequence()
         }
 
         return START_STICKY
     }
 
-    private fun sendCurrentStatus(logTag: String) {
-        val sAlive = slipstreamProcess?.isAlive == true
-        val proxyAlive = proxyProcess?.isAlive == true
+    private fun sendCurrentStatus() {
         sendStatusUpdate(
-            if (sAlive) "Running" else "Stopped",
-            if (proxyAlive) "Running" else "Stopped"
+            if (slipstreamProcess?.isAlive == true) "Running" else "Stopped",
+            if (proxyProcess?.isAlive == true) "Running" else "Stopped"
         )
     }
 
-    private suspend fun startTunnelSequence(resolvers: ArrayList<String>, domainName: String) {
+    private suspend fun startTunnelSequence() {
         tunnelMutex.withLock {
             isRestarting = true
             try {
@@ -128,14 +114,27 @@ class CommandService : LifecycleService(), CoroutineScope {
                 val slipstreamPath = getNativeBinaryPath(SLIPSTREAM_BINARY_NAME)
                 val proxyPath = getNativeBinaryPath(PROXY_CLIENT_BINARY_NAME)
 
-                if (!File(slipstreamPath).exists() || !File(proxyPath).exists()) {
+                if (slipstreamPath == null || proxyPath == null) {
                     sendErrorMessage("Native binaries not found")
+                    stopSelf()
                     return
                 }
 
-                val success = executeCommands(slipstreamPath, proxyPath, resolvers, domainName)
-                if (success && isActive) {
+                if (privateKeyPath.isNotEmpty()) {
+                    try {
+                        Runtime.getRuntime()
+                            .exec(arrayOf("chmod", "600", privateKeyPath))
+                            .waitFor()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "chmod failed: ${e.message}")
+                    }
+                }
+
+                val success = executeCommands(slipstreamPath, proxyPath)
+                if (success) {
                     tunnelMonitorJob = launch { startTunnelMonitor() }
+                } else {
+                    stopSelf()
                 }
             } finally {
                 isRestarting = false
@@ -143,50 +142,48 @@ class CommandService : LifecycleService(), CoroutineScope {
         }
     }
 
-    private fun getNativeBinaryPath(name: String): String {
-        return "${applicationInfo.nativeLibraryDir}/$name"
+    private fun getNativeBinaryPath(name: String): String? {
+        val libDir = applicationInfo.nativeLibraryDir ?: return null
+        val file = File(libDir, name)
+        return if (file.exists()) file.absolutePath else null
     }
 
     private suspend fun startTunnelMonitor() {
         while (isActive) {
             delay(MONITOR_INTERVAL_MS)
             if (slipstreamProcess?.isAlive != true || proxyProcess?.isAlive != true) {
-                launch { startTunnelSequence(resolversConfig, domainNameConfig) }
-                break
+                if (!isRestarting) {
+                    startTunnelSequence()
+                    break
+                }
+            } else {
+                sendStatusUpdate("Running", "Running")
             }
         }
     }
 
     private suspend fun executeCommands(
         slipstreamPath: String,
-        proxyPath: String,
-        resolvers: ArrayList<String>,
-        domainName: String
+        proxyPath: String
     ): Boolean {
 
         val slipCommand = mutableListOf(
             slipstreamPath,
-            "--congestion-control=bbr",
-            "--domain=$domainName"
+            "--domain=$domainNameConfig"
         )
 
-        resolvers.forEach {
+        resolversConfig.forEach {
             slipCommand.add("--resolver=${if (it.contains(":")) it else "$it:53"}")
         }
 
-        val slipResult = startProcessWithOutputCheck(
-            slipCommand,
-            SLIPSTREAM_BINARY_NAME,
-            5000L,
-            "Connection confirmed."
-        )
+        val slipProcess = ProcessBuilder(slipCommand)
+            .redirectErrorStream(true)
+            .start()
 
-        slipstreamProcess = slipResult.second
+        slipstreamProcess = slipProcess
+        slipstreamReaderJob = launch { readProcessOutput(slipProcess, "slipstream") }
 
-        if (!slipResult.first.contains("Connection confirmed.")) {
-            sendErrorMessage("Slipstream failed")
-            return false
-        }
+        delay(1500)
 
         val proxyCommand = listOf(
             proxyPath,
@@ -195,87 +192,70 @@ class CommandService : LifecycleService(), CoroutineScope {
             "127.0.0.1:3080"
         )
 
-        val proxyResult = startProcessWithOutputCheck(
-            proxyCommand,
-            PROXY_CLIENT_BINARY_NAME,
-            1500L,
-            null
-        )
+        val proxyProc = ProcessBuilder(proxyCommand)
+            .redirectErrorStream(true)
+            .start()
 
-        proxyProcess = proxyResult.second
-        return proxyProcess?.isAlive == true
+        proxyProcess = proxyProc
+        proxyReaderJob = launch { readProcessOutput(proxyProc, "proxy") }
+
+        return true
     }
 
-    private suspend fun startProcessWithOutputCheck(
-        command: List<String>,
-        logTag: String,
-        timeout: Long,
-        successMsg: String?
-    ): Pair<String, Process> {
-        val process = ProcessBuilder(command).redirectErrorStream(true).start()
-        val reader = BufferedReader(InputStreamReader(process.inputStream))
-        val output = StringBuilder()
-
-        withTimeoutOrNull(timeout) {
-            while (true) {
+    private suspend fun readProcessOutput(process: Process, tag: String) {
+        withContext(Dispatchers.IO) {
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            while (isActive && process.isAlive) {
                 val line = reader.readLine() ?: break
-                output.append(line)
-                if (successMsg != null && line.contains(successMsg)) return@withTimeoutOrNull
+                Log.d(TAG, "$tag: $line")
             }
         }
-
-        return Pair(output.toString(), process)
     }
 
     private fun sendErrorMessage(msg: String) {
-        val intent = Intent(ACTION_ERROR).apply {
-            putExtra(EXTRA_ERROR_MESSAGE, msg)
-        }
+        val intent = Intent(ACTION_ERROR)
+        intent.putExtra(EXTRA_ERROR_MESSAGE, msg)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
+
+    private fun sendStatusUpdate(slip: String, ssh: String) {
+        val intent = Intent(ACTION_STATUS_UPDATE)
+        intent.putExtra(EXTRA_STATUS_SLIPSTREAM, slip)
+        intent.putExtra(EXTRA_STATUS_SSH, ssh)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val chan = NotificationChannel(
+            val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
                 "Tunnel Service",
                 NotificationManager.IMPORTANCE_LOW
             )
-            getSystemService(Context.NOTIFICATION_SERVICE)
-                .let { it as NotificationManager }
-                .createNotificationChannel(chan)
+            getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(channel)
         }
     }
 
     private fun buildForegroundNotification(): Notification {
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
+            this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Tunnel Service")
-            .setContentText("Active")
+            .setContentTitle("Slipstream Tunnel")
+            .setContentText("Running")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pendingIntent)
             .build()
     }
 
-    private fun sendStatusUpdate(slipstreamStatus: String, sshStatus: String) {
-        val intent = Intent(ACTION_STATUS_UPDATE).apply {
-            putExtra(EXTRA_STATUS_SLIPSTREAM, slipstreamStatus)
-            putExtra(EXTRA_STATUS_SSH, sshStatus)
-        }
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-    }
-
     private fun cleanUpLingeringProcesses() {
         try {
-            Runtime.getRuntime().exec(arrayOf("killall", "-9", SLIPSTREAM_BINARY_NAME))
-            Runtime.getRuntime().exec(arrayOf("killall", "-9", PROXY_CLIENT_BINARY_NAME))
+            Runtime.getRuntime().exec(arrayOf("killall", "-9", "libslipstream.so"))
+            Runtime.getRuntime().exec(arrayOf("killall", "-9", "libproxy.so"))
         } catch (_: Exception) {}
     }
 
@@ -287,4 +267,11 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     override fun onBind(intent: Intent): IBinder? = null
+
+    override fun onDestroy() {
+        job.cancel()
+        stopBackgroundProcesses()
+        super.onDestroy()
+    }
 }
+
