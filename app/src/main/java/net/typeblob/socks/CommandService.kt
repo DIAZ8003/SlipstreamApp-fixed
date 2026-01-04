@@ -15,6 +15,9 @@ import kotlinx.coroutines.*
 class CommandService : LifecycleService() {
 
     companion object {
+        const val ACTION_ERROR = "net.typeblob.socks.ERROR"
+        const val EXTRA_ERROR_MESSAGE = "error_message"
+        const val EXTRA_ERROR_OUTPUT = "error_output"
         const val EXTRA_RESOLVERS = "extra_ip_addresses_list"
         const val EXTRA_DOMAIN = "domain_name"
         const val EXTRA_KEY_PATH = "private_key_path"
