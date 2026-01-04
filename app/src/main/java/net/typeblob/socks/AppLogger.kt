@@ -1,24 +1,22 @@
 package net.typeblob.socks
 
+import android.content.Context
+import java.io.File
+
 object AppLogger {
-    private const val MAX_LINES = 500
-    private val buffer = mutableListOf<String>()
+
+    private lateinit var logFile: File
+
+    fun init(context: Context) {
+        logFile = File(context.filesDir, "slipstream.log")
+        log("=== App started ===")
+    }
 
     @Synchronized
     fun log(msg: String) {
-        if (buffer.size >= MAX_LINES) {
-            buffer.removeAt(0)
-        }
-        buffer.add(msg)
-    }
-
-    @Synchronized
-    fun getLogs(): String {
-        return buffer.joinToString("\n")
-    }
-
-    @Synchronized
-    fun clear() {
-        buffer.clear()
+        try {
+            if (!::logFile.isInitialized) return
+            logFile.appendText(msg + "\n")
+        } catch (_: Exception) {}
     }
 }

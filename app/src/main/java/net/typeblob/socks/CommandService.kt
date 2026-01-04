@@ -77,8 +77,10 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        AppLogger.log("CommandService onStartCommand()")
         AppLogger.log("onStartCommand called")
         super.onStartCommand(intent, flags, startId)
+        AppLogger.log("CommandService onStartCommand()")
 
         if (intent?.action == ACTION_REQUEST_STATUS) {
             sendCurrentStatus()

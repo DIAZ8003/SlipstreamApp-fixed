@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppLogger.init(applicationContext)
         setContentView(R.layout.activity_main)
 
         sharedPreferences = getSharedPreferences("SlipstreamPrefs", Context.MODE_PRIVATE)
