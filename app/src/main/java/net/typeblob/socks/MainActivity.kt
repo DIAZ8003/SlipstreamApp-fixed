@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var profileSpinner: Spinner
     private lateinit var addProfileButton: ImageButton
     private lateinit var deleteProfileButton: ImageButton
+    private lateinit var exportLogsButton: Button
+
 
     private lateinit var slipstreamStatusIndicator: TextView
     private lateinit var slipstreamStatusText: TextView
@@ -127,6 +129,8 @@ class MainActivity : AppCompatActivity() {
         profileSpinner = findViewById(R.id.profile_spinner)
         addProfileButton = findViewById(R.id.add_profile_button)
         deleteProfileButton = findViewById(R.id.delete_profile_button)
+        exportLogsButton = findViewById(R.id.btn_export_logs)
+
 
         slipstreamStatusIndicator = findViewById(R.id.slipstream_status_indicator)
         slipstreamStatusText = findViewById(R.id.slipstream_status_text)
@@ -136,6 +140,11 @@ class MainActivity : AppCompatActivity() {
         setupProfiles()
 
         addResolverButton.setOnClickListener { addResolverInput("", true) }
+
+        exportLogsButton.setOnClickListener {
+            exportLogsToDownloads()
+        }
+
         addProfileButton.setOnClickListener { showAddProfileDialog() }
         deleteProfileButton.setOnClickListener { deleteCurrentProfile() }
 
@@ -505,4 +514,33 @@ class MainActivity : AppCompatActivity() {
         LocalBroadcastManager.getInstance(this).unregisterReceiver(statusReceiver)
         super.onDestroy()
     }
+
+
+
+    private fun exportLogsToDownloads() {
+        try {
+            val logFile = AppLogger.getLogFile()
+            if (logFile == null || !logFile.exists()) {
+                Toast.makeText(this, "Log file not found", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            )
+
+            val outFile = File(downloads, "slipstream-log.txt")
+            logFile.copyTo(outFile, overwrite = true)
+
+            Toast.makeText(
+                this,
+                "Log exported to Downloads/slipstream-log.txt",
+                Toast.LENGTH_LONG
+            ).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
 }

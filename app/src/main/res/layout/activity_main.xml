@@ -57,84 +57,8 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Delete Profile"
             android:src="@android:drawable/ic_menu_delete" />
-        </LinearLayout>
 
-        <Switch
-            android:id="@+id/tunnel_switch"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:checked="false"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:text="Turn Tunnel On/Off"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/profile_management_layout" />
-
-        <LinearLayout
-            android:id="@+id/resolver_header"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tunnel_switch">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Resolvers (IP Addresses)"
-                android:textStyle="italic" />
-
-            <Button
-                android:id="@+id/add_resolver_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Add IP" />
-            </LinearLayout>
-
-            <ScrollView
-                android:id="@+id/resolver_scroll"
-                android:layout_width="0dp"
-                android:layout_height="150dp"
-                android:layout_marginTop="8dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/resolver_header">
-
-                <LinearLayout
-                    android:id="@+id/resolvers_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-                </ScrollView>
-
-                <EditText
-                    android:id="@+id/domain_input"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:hint="Domain Name (e.g., example.com)"
-                    android:inputType="textUri"
-                    android:minHeight="48dp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/resolver_scroll" />
-
-                <TextView
-                    android:id="@+id/key_path_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="Private Key Configuration"
-                    android:textStyle="bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/domain_input" />
-
+    <Button
                 <LinearLayout
                     android:id="@+id/key_path_container"
                     android:layout_width="0dp"
@@ -161,6 +85,14 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:src="@android:drawable/ic_menu_search"
                         android:contentDescription="Browse File" />
+
+    <Button
+        android:id="@+id/btn_export_logs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Export logs"
+        android:layout_marginTop="12dp"/>
+
                     </LinearLayout>
 
                 <TextView
