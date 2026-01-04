@@ -1,23 +1,33 @@
 package net.typeblob.socks
 
-object AppLogger {
-    private const val MAX_LINES = 500
-    private val buffer = mutableListOf<String>()
+import android.content.Context
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-    @Synchronized
-    fun log(msg: String) {
-        if (buffer.size >= MAX_LINES) {
-            buffer.removeAt(0)
-        }
-        buffer.add("[${System.currentTimeMillis()}] $msg")
+object AppLogger {
+
+    private const val FILE_NAME = "slipstream.log"
+    private const val MAX_SIZE_BYTES = 512 * 1024 // 512 KB
+    private lateinit var logFile: File
+
+    fun init(context: Context) {
+        logFile = File(context.filesDir, FILE_NAME)
     }
 
     @Synchronized
-    fun getLogs(): String =
-        buffer.joinToString("\n")
+    fun log(msg: String) {
+        try {
+            if (!::logFile.isInitialized) return
 
-    @Synchronized
-    fun clear() {
-        buffer.clear()
+            if (logFile.exists() && logFile.length() > MAX_SIZE_BYTES) {
+                logFile.writeText("")
+            }
+
+            val ts = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
+            logFile.appendText("[$ts] $msg\n")
+        } catch (_: Exception) {
+        }
     }
 }
