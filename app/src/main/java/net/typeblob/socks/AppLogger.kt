@@ -9,12 +9,13 @@ object AppLogger {
         if (buffer.size >= MAX_LINES) {
             buffer.removeAt(0)
         }
-        buffer.add("[${System.currentTimeMillis()}] $msg")
+        buffer.add(msg)
     }
 
     @Synchronized
-    fun getLogs(): String =
-        buffer.joinToString("\n")
+    fun getLogs(): String {
+        return buffer.joinToString("\n")
+    }
 
     @Synchronized
     fun clear() {
