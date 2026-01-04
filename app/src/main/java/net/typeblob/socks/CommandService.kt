@@ -74,9 +74,14 @@ class CommandService : LifecycleService(), CoroutineScope {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        AppLogger.init(this)
+        AppLogger.log("CommandService created")
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        AppLogger.log("onStartCommand invoked")
+
         AppLogger.log("onStartCommand called")
         super.onStartCommand(intent, flags, startId)
 
@@ -88,6 +93,10 @@ class CommandService : LifecycleService(), CoroutineScope {
         resolversConfig = intent?.getStringArrayListExtra(EXTRA_RESOLVERS) ?: arrayListOf()
         domainNameConfig = intent?.getStringExtra(EXTRA_DOMAIN) ?: ""
         privateKeyPath = intent?.getStringExtra(EXTRA_KEY_PATH) ?: ""
+        AppLogger.log("Resolvers: " + resolversConfig.joinToString(","))
+        AppLogger.log("Domain: " + domainNameConfig)
+        AppLogger.log("KeyPath: " + privateKeyPath)
+
 
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
 
@@ -229,6 +238,9 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     private fun createNotificationChannel() {
+        AppLogger.init(this)
+        AppLogger.log("CommandService created")
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
