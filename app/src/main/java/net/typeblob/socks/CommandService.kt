@@ -1,6 +1,5 @@
 package net.typeblob.socks
 import net.typeblob.socks.AppLogger
-import net.typeblob.socks.AppLogger
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -189,7 +188,6 @@ class CommandService : LifecycleService(), CoroutineScope {
         delay(1500)
 
         val proxyCommand = listOf(
-        AppLogger.log("Proxy cmd: " + proxyCommand.joinToString(" "))
             proxyPath,
             privateKeyPath,
             "127.0.0.1:5201",
