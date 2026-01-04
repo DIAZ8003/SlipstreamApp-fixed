@@ -340,7 +340,7 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     private fun copyBinaryToFilesDir(name: String): String? {
-        val file = File(filesDir, name)
+        val file = File(codeCacheDir, name)
         return try {
             if (!file.exists()) {
                 assets.open(name).use { input ->
