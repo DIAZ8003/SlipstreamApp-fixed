@@ -1,4 +1,5 @@
 package net.typeblob.socks
+import net.typeblob.socks.AppLogger
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -76,6 +77,7 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        AppLogger.log("onStartCommand called")
         super.onStartCommand(intent, flags, startId)
 
         if (intent?.action == ACTION_REQUEST_STATUS) {
@@ -116,6 +118,7 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                 if (slipstreamPath == null || proxyPath == null) {
                     sendErrorMessage("Native binaries not found")
+        AppLogger.log("ERROR: " + msg)
                     stopSelf()
                     return
                 }
@@ -168,6 +171,7 @@ class CommandService : LifecycleService(), CoroutineScope {
     ): Boolean {
 
         val slipCommand = mutableListOf(
+        AppLogger.log("Starting slipstream: " + slipCommand.joinToString(" "))
             slipstreamPath,
             "--domain=$domainNameConfig"
         )
@@ -186,6 +190,7 @@ class CommandService : LifecycleService(), CoroutineScope {
         delay(1500)
 
         val proxyCommand = listOf(
+        AppLogger.log("Starting proxy: " + proxyCommand.joinToString(" "))
             proxyPath,
             privateKeyPath,
             "127.0.0.1:5201",
@@ -213,6 +218,7 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     private fun sendErrorMessage(msg: String) {
+        AppLogger.log("ERROR: " + msg)
         val intent = Intent(ACTION_ERROR)
         intent.putExtra(EXTRA_ERROR_MESSAGE, msg)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
