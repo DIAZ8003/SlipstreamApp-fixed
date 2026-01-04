@@ -118,7 +118,6 @@ class CommandService : LifecycleService(), CoroutineScope {
 
                 if (slipstreamPath == null || proxyPath == null) {
                     sendErrorMessage("Native binaries not found")
-        AppLogger.log("ERROR: " + msg)
                     stopSelf()
                     return
                 }
