@@ -137,6 +137,28 @@
 
                 <LinearLayout
                     android:id="@+id/key_path_container"
+
+                <TextView
+                    android:id="@+id/status_section_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="Service Status"
+                    android:textSize="18sp"
+                    android:textStyle="italic"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/key_path_container" />
+
+                <Button
+                    android:id="@+id/btn_export_logs"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Export logs"
+                    android:layout_marginTop="8dp"
+                    app:layout_constraintTop_toBottomOf="@id/status_section_title"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -169,14 +191,6 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="24dp"
                     android:text="Service Status"
-
-        <Button
-            android:id="@+id/btn_export_logs"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Export logs"
-            android:layout_marginTop="12dp"/>
-
                     android:textSize="18sp"
                     android:textStyle="italic"
                     app:layout_constraintStart_toStartOf="parent"
