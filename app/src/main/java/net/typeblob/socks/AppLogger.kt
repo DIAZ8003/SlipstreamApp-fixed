@@ -19,8 +19,8 @@ object AppLogger {
 
     fun init(context: Context) {
         try {
-            val downloads = context.getExternalFilesDir(null)!!
-
+            val downloads = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS
             )
 
             if (!downloads.exists()) {
@@ -28,7 +28,6 @@ object AppLogger {
             }
 
             logFile = File(downloads, LOG_FILE_NAME)
-
             rotateIfNeeded()
             log("=== AppLogger initialized ===")
 
@@ -45,14 +44,13 @@ object AppLogger {
         ).format(Date())
 
         val line = "$timestamp | $message"
-
         Log.d(TAG, line)
 
         try {
             rotateIfNeeded()
             logFile?.appendText(line + "\n")
         } catch (_: Exception) {
-            // Nunca romper la app por logging
+            // nunca romper la app por logging
         }
     }
 
@@ -64,8 +62,7 @@ object AppLogger {
                 file.createNewFile()
                 Log.w(TAG, "Log rotated (size limit reached)")
             }
-        } catch (_: Exception) {
-        }
+        } catch (_: Exception) {}
     }
 
     fun getLogFile(): File? = logFile

@@ -238,7 +238,6 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     private fun createNotificationChannel() {
-        AppLogger.log("CommandService created")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
