@@ -1,4 +1,7 @@
 package net.typeblob.socks
+import android.os.Handler
+import android.os.Looper
+
 
 import android.Manifest
 import android.content.*
@@ -117,6 +120,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        val logView = findViewById<TextView>(R.id.log_text_view)
+        val handler = Handler(Looper.getMainLooper())
+
+        handler.post(object : Runnable {
+            override fun run() {
+                logView.text = AppLogger.getLogs()
+                handler.postDelayed(this, 1000)
+            }
+        })
+
 
         sharedPreferences = getSharedPreferences("SlipstreamPrefs", Context.MODE_PRIVATE)
 

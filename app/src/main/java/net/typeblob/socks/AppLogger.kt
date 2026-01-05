@@ -10,6 +10,9 @@ import java.util.Locale
 
 object AppLogger {
 
+    private val memoryLogs = StringBuilder()
+
+
     private const val TAG = "SlipstreamApp"
     private const val LOG_FILE_NAME = "slipstream.log"
     private const val MAX_LOG_SIZE_BYTES = 1 * 1024 * 1024 // 1 MB
@@ -63,6 +66,11 @@ object AppLogger {
                 Log.w(TAG, "Log rotated (size limit reached)")
             }
         } catch (_: Exception) {}
+    }
+
+
+    fun getLogs(): String = synchronized(memoryLogs) {
+        memoryLogs.toString()
     }
 
     fun getLogFile(): File? = logFile
