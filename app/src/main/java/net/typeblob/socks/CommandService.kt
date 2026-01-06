@@ -36,34 +36,26 @@ class CommandService : LifecycleService(), CoroutineScope {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private var slipstreamProcess: Process? = null
     private var proxyProcess: Process? = null
-    private var slipstreamReaderJob: Job? = null
     private var proxyReaderJob: Job? = null
     private var tunnelMonitorJob: Job? = null
     private var mainExecutionJob: Job? = null
 
     private val tunnelMutex = Mutex()
 
-    private var resolversConfig: ArrayList<String> = arrayListOf()
-    private var domainNameConfig: String = ""
     private var privateKeyPath: String = ""
     private var isRestarting = false
 
     companion object {
-        const val EXTRA_RESOLVERS = "extra_ip_addresses_list"
-        const val EXTRA_DOMAIN = "domain_name"
         const val EXTRA_KEY_PATH = "private_key_path"
 
         // ⚠️ IMPORTANTE: binarios nativos empaquetados en jniLibs
-        const val SLIPSTREAM_BINARY_NAME = "libslipstream.so"
         const val PROXY_CLIENT_BINARY_NAME = "libproxy.so"
 
         const val ACTION_STATUS_UPDATE = "net.typeblob.socks.STATUS_UPDATE"
         const val ACTION_ERROR = "net.typeblob.socks.ERROR"
         const val ACTION_REQUEST_STATUS = "net.typeblob.socks.REQUEST_STATUS"
 
-        const val EXTRA_STATUS_SLIPSTREAM = "status_slipstream"
         const val EXTRA_STATUS_SSH = "status_ssh"
         const val EXTRA_ERROR_MESSAGE = "error_message"
         const val EXTRA_ERROR_OUTPUT = "error_output"
@@ -85,8 +77,6 @@ class CommandService : LifecycleService(), CoroutineScope {
             return START_STICKY
         }
 
-        resolversConfig = intent?.getStringArrayListExtra(EXTRA_RESOLVERS) ?: arrayListOf()
-        domainNameConfig = intent?.getStringExtra(EXTRA_DOMAIN) ?: ""
         privateKeyPath = intent?.getStringExtra(EXTRA_KEY_PATH) ?: ""
 
         startForeground(NOTIFICATION_ID, buildForegroundNotification())
@@ -101,7 +91,6 @@ class CommandService : LifecycleService(), CoroutineScope {
 
     private fun sendCurrentStatus() {
         sendStatusUpdate(
-            if (slipstreamProcess?.isAlive == true) "Running" else "Stopped",
             if (proxyProcess?.isAlive == true) "Running" else "Stopped"
         )
     }
@@ -113,10 +102,17 @@ class CommandService : LifecycleService(), CoroutineScope {
                 stopBackgroundProcesses()
                 cleanUpLingeringProcesses()
 
-                val slipstreamPath = getNativeBinaryPath(SLIPSTREAM_BINARY_NAME)
+                val proxyPath = getNativeBinaryPath(PROXY_CLIENT_BINARY_NAME)
+                if (proxyPath == null) {
+                    sendErrorMessage("Proxy binary not found")
+                    stopSelf()
+                    return
+                }
+
+
                 val proxyPath = getNativeBinaryPath(PROXY_CLIENT_BINARY_NAME)
 
-                if (slipstreamPath == null || proxyPath == null) {
+                if (proxyPath == null) {
                     sendErrorMessage("Native binaries not found")
                     stopSelf()
                     return
@@ -164,7 +160,7 @@ class CommandService : LifecycleService(), CoroutineScope {
         }
     }
 
-    private suspend fun executeCommands(proxyPath: String): Boolean {
+    private suspend fun executeCommands(proxyPath): Boolean {
 
         AppLogger.log("Starting proxy only (Slipstream via Termux)")
 
@@ -229,7 +225,6 @@ class CommandService : LifecycleService(), CoroutineScope {
 
     private fun sendStatusUpdate(slip: String, ssh: String) {
         val intent = Intent(ACTION_STATUS_UPDATE)
-        intent.putExtra(EXTRA_STATUS_SLIPSTREAM, slip)
         intent.putExtra(EXTRA_STATUS_SSH, ssh)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
@@ -262,16 +257,21 @@ class CommandService : LifecycleService(), CoroutineScope {
     }
 
     private fun cleanUpLingeringProcesses() {
+
+                val proxyPath = getNativeBinaryPath(PROXY_CLIENT_BINARY_NAME)
+                if (proxyPath == null) {
+                    sendErrorMessage("Proxy binary not found")
+                    stopSelf()
+                    return
+                }
+
         try {
-            Runtime.getRuntime().exec(arrayOf("killall", "-9", "libslipstream.so"))
             Runtime.getRuntime().exec(arrayOf("killall", "-9", "libproxy.so"))
         } catch (_: Exception) {}
     }
 
     private fun stopBackgroundProcesses() {
-        slipstreamProcess?.destroy()
         proxyProcess?.destroy()
-        slipstreamProcess = null
         proxyProcess = null
     }
 
@@ -283,4 +283,29 @@ class CommandService : LifecycleService(), CoroutineScope {
         super.onDestroy()
     }
 }
+
+
+    private suspend fun executeCommands(proxyPath: String): Boolean {
+        AppLogger.log("Phase B: Proxy-only mode (Slipstream via Termux)")
+
+        val proxyCommand = listOf(
+            proxyPath,
+            "127.0.0.1:8080"
+        )
+
+        return try {
+            val process = ProcessBuilder(proxyCommand)
+                .redirectErrorStream(true)
+                .start()
+
+            proxyProcess = process
+            proxyReaderJob = launch { readProcessOutput(process, "proxy") }
+
+            sendStatusUpdate("Running", "Idle")
+            true
+        } catch (e: Exception) {
+            sendErrorMessage("Failed to start proxy", e.message ?: "")
+            false
+        }
+    }
 
