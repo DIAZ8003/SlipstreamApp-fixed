@@ -143,24 +143,16 @@ public class SocksVpnService extends VpnService {
         }
 
         Routes.addRoutes(this, b, route);
+        b.addRoute("0.0.0.0", 0);
         b.addRoute("8.8.8.8", 32);
 
         // Disallow self to prevent infinite loops
         try {
-            b.addDisallowedApplication(getPackageName());
             Log.d(TAG, "Bypassing self: " + getPackageName());
         } catch (Exception e) {
             Log.e(TAG, "Failed to add self to disallowed list", e);
         }
 
-        if (perApp && apps != null) {
-            Log.d(TAG, "Per-app routing: " + (bypass ? "Bypass" : "Allowed") + " list: " + Arrays.toString(apps));
-            for (String p : apps) {
-                if (TextUtils.isEmpty(p) || p.equals(getPackageName())) continue;
-                try {
-                    if (bypass) b.addDisallowedApplication(p.trim());
-                    else b.addAllowedApplication(p.trim());
-                } catch (Exception e) {
                     Log.w(TAG, "Could not apply rule for app: " + p);
                 }
             }
