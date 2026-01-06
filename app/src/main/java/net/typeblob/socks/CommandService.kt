@@ -132,7 +132,7 @@ class CommandService : LifecycleService(), CoroutineScope {
                     }
                 }
 
-                val success = executeCommands(slipstreamPath, proxyPath)
+                val success = executeCommands(proxyPath)
                 if (success) {
                     tunnelMonitorJob = launch { startTunnelMonitor() }
                 } else {
@@ -153,7 +153,7 @@ class CommandService : LifecycleService(), CoroutineScope {
     private suspend fun startTunnelMonitor() {
         while (isActive) {
             delay(MONITOR_INTERVAL_MS)
-            if (slipstreamProcess?.isAlive != true || proxyProcess?.isAlive != true) {
+            if (proxyProcess?.isAlive != true) {
                 if (!isRestarting) {
                     startTunnelSequence()
                     break
@@ -164,44 +164,50 @@ class CommandService : LifecycleService(), CoroutineScope {
         }
     }
 
-    private suspend fun executeCommands(
-        slipstreamPath: String,
-        proxyPath: String
-    ): Boolean {
+    private suspend fun executeCommands(proxyPath: String): Boolean {
 
-        val slipCommand = mutableListOf(
-            slipstreamPath,
-            "--domain=$domainNameConfig"
-        )
+        AppLogger.log("Starting proxy only (Slipstream via Termux)")
 
-        resolversConfig.forEach {
-            slipCommand.add("--resolver=${if (it.contains(":")) it else "$it:53"}")
-        }
 
-        val slipProcess = ProcessBuilder(slipCommand)
-            .redirectErrorStream(true)
-            .start()
-
-        slipstreamProcess = slipProcess
-        slipstreamReaderJob = launch { readProcessOutput(slipProcess, "slipstream") }
-
-        delay(1500)
 
         val proxyCommand = listOf(
+
             proxyPath,
-            privateKeyPath,
-            "127.0.0.1:5201",
-            "127.0.0.1:3080"
+
+            "127.0.0.1:8080"
+
         )
 
-        val proxyProc = ProcessBuilder(proxyCommand)
-            .redirectErrorStream(true)
-            .start()
 
-        proxyProcess = proxyProc
-        proxyReaderJob = launch { readProcessOutput(proxyProc, "proxy") }
 
-        return true
+        return try {
+
+            val process = ProcessBuilder(proxyCommand)
+
+                .redirectErrorStream(true)
+
+                .start()
+
+
+
+            proxyProcess = process
+
+            proxyReaderJob = launch { readProcessOutput(process, "proxy") }
+
+
+
+            sendStatusUpdate("Running", "Running")
+
+            true
+
+        } catch (e: Exception) {
+
+            sendErrorMessage("Failed to start proxy", e.message ?: "")
+
+            false
+
+        }
+
     }
 
     private suspend fun readProcessOutput(process: Process, tag: String) {
