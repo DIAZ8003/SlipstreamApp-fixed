@@ -129,8 +129,8 @@ class CommandService : LifecycleService(), CoroutineScope {
                 }
 
                 startSlipstreamViaTermux()
-                if (!waitForLocalPort(8080)) {
-                    sendErrorMessage("Slipstream not listening on 127.0.0.1:8080")
+                if (!waitForLocalPort(5201)) {
+                    sendErrorMessage("Slipstream not listening on 127.0.0.1:5201")
                     stopSelf()
                     return
                 }
@@ -168,8 +168,8 @@ class CommandService : LifecycleService(), CoroutineScope {
 
 
     private fun startSlipstreamViaTermux()
-                if (!waitForLocalPort(8080)) {
-                    sendErrorMessage("Slipstream not listening on 127.0.0.1:8080")
+                if (!waitForLocalPort(5201)) {
+                    sendErrorMessage("Slipstream not listening on 127.0.0.1:5201")
                     stopSelf()
                     return
                 } {
@@ -210,7 +210,7 @@ class CommandService : LifecycleService(), CoroutineScope {
 
             proxyPath,
 
-            "127.0.0.1:8080"
+            "127.0.0.1:5201"
 
         )
 

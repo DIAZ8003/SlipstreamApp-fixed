@@ -174,7 +174,7 @@ public class SocksVpnService extends VpnService {
         // 2. TUN2SOCKS
         String command = String.format(Locale.US,
                 "%s/libtun2socks.so --netif-ipaddr 26.26.26.2 --netif-netmask 255.255.255.0"
-                        + " --socks-server-addr 127.0.0.1:8080 --tunfd %d --tunmtu 1500 --loglevel 3"
+                        + " --socks-server-addr 127.0.0.1:5201 --tunfd %d --tunmtu 1500 --loglevel 3"
                         + " --pid %s/tun2socks.pid --sock %s/sock_path --dnsgw 26.26.26.1:8091",
                 getApplicationInfo().nativeLibraryDir, server, port, fd, getFilesDir(), getApplicationInfo().dataDir);
 
