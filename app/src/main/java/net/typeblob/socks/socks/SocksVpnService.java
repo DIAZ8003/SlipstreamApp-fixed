@@ -31,7 +31,7 @@ public class SocksVpnService extends VpnService {
         @Override
         public void stop() {
             Log.i(TAG, "Stop requested via Binder interface");
-            stopMe();
+            Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
         }
     }
 
@@ -50,7 +50,7 @@ public class SocksVpnService extends VpnService {
 
         if (intent != null && intent.getBooleanExtra("ACTION_STOP", false)) {
                 Log.i(TAG, "Stop signal received via Intent");
-                stopMe();
+                Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
                 return START_NOT_STICKY;
             }
 
@@ -91,11 +91,11 @@ public class SocksVpnService extends VpnService {
                         intent.getStringExtra(INTENT_UDP_GW));
             } else {
                 Log.e(TAG, "Failed to establish VPN interface (mInterface is null)");
-                stopMe();
+                Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
             }
         } catch (Exception e) {
             Log.e(TAG, "Critical error during startup", e);
-            stopMe();
+            Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
         }
 
         return START_STICKY;
@@ -182,18 +182,17 @@ public class SocksVpnService extends VpnService {
         // 2. TUN2SOCKS
         String command = String.format(Locale.US,
                 "%s/libtun2socks.so --netif-ipaddr 26.26.26.2 --netif-netmask 255.255.255.0"
-                        + " --socks-server-addr %s:%d --tunfd %d --tunmtu 1500 --loglevel 3"
+                        + " --socks-server-addr 127.0.0.1:8080 --tunfd %d --tunmtu 1500 --loglevel 3"
                         + " --pid %s/tun2socks.pid --sock %s/sock_path --dnsgw 26.26.26.1:8091",
                 getApplicationInfo().nativeLibraryDir, server, port, fd, getFilesDir(), getApplicationInfo().dataDir);
 
-        if (user != null) command += " --username " + user + " --password " + passwd;
         if (ipv6) command += " --netif-ip6addr fdfe:dcba:9876::2";
         if (udpgw != null) command += " --udpgw-remote-server-addr " + udpgw;
 
         Log.d(TAG, "Exec tun2socks: " + command);
         if (Utility.exec(command) != 0) {
             Log.e(TAG, "Native binary tun2socks failed to start");
-            stopMe();
+            Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
             return;
         }
 
@@ -211,7 +210,7 @@ public class SocksVpnService extends VpnService {
         }
 
         Log.e(TAG, "FD transfer timed out after 5 attempts");
-        stopMe();
+        Log.w(TAG,"tun2socks started, waiting for SOCKS backend");
     }
 
     private void stopMe() {
@@ -234,7 +233,7 @@ public class SocksVpnService extends VpnService {
         stopSelf();
     }
 
-    @Override public void onRevoke() { Log.i(TAG, "VPN Revoked"); stopMe(); }
-    @Override public void onDestroy() { Log.i(TAG, "Service Destroyed"); stopMe(); }
+    @Override public void onRevoke() { Log.i(TAG, "VPN Revoked"); Log.w(TAG,"tun2socks started, waiting for SOCKS backend"); }
+    @Override public void onDestroy() { Log.i(TAG, "Service Destroyed"); Log.w(TAG,"tun2socks started, waiting for SOCKS backend"); }
     @Override public IBinder onBind(Intent intent) { return mBinder; }
 }

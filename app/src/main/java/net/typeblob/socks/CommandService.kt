@@ -128,6 +128,12 @@ class CommandService : LifecycleService(), CoroutineScope {
                     }
                 }
 
+                startSlipstreamViaTermux()
+                if (!waitForLocalPort(8080)) {
+                    sendErrorMessage("Slipstream not listening on 127.0.0.1:8080")
+                    stopSelf()
+                    return
+                }
                 val success = executeCommands(proxyPath)
                 if (success) {
                     tunnelMonitorJob = launch { startTunnelMonitor() }
@@ -160,7 +166,41 @@ class CommandService : LifecycleService(), CoroutineScope {
         }
     }
 
-    private suspend fun executeCommands(proxyPath): Boolean {
+
+    private fun startSlipstreamViaTermux()
+                if (!waitForLocalPort(8080)) {
+                    sendErrorMessage("Slipstream not listening on 127.0.0.1:8080")
+                    stopSelf()
+                    return
+                } {
+
+    private suspend fun waitForLocalPort(port: Int, timeoutMs: Long = 10000): Boolean {
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            try {
+                Socket("127.0.0.1", port).close()
+                AppLogger.log("Local port $port is ready")
+                return true
+            } catch (_: Exception) {
+                delay(500)
+            }
+        }
+        AppLogger.log("Timeout waiting for local port $port")
+        return false
+    }
+
+        try {
+            val intent = Intent("com.termux.service_execute")
+            intent.setClassName("com.termux", "com.termux.app.TermuxService")
+            intent.putExtra("com.termux.execute", "$HOME/.termux/tasker/slipstream.sh")
+            startService(intent)
+            AppLogger.log("Slipstream started via Termux service")
+        } catch (e: Exception) {
+            AppLogger.log("Failed to start Slipstream via Termux: ${e.message}")
+        }
+    }
+
+    private suspend fun executeCommands(proxyPath: String): Boolean {
 
         AppLogger.log("Starting proxy only (Slipstream via Termux)")
 
@@ -282,30 +322,3 @@ class CommandService : LifecycleService(), CoroutineScope {
         stopBackgroundProcesses()
         super.onDestroy()
     }
-}
-
-
-    private suspend fun executeCommands(proxyPath: String): Boolean {
-        AppLogger.log("Phase B: Proxy-only mode (Slipstream via Termux)")
-
-        val proxyCommand = listOf(
-            proxyPath,
-            "127.0.0.1:8080"
-        )
-
-        return try {
-            val process = ProcessBuilder(proxyCommand)
-                .redirectErrorStream(true)
-                .start()
-
-            proxyProcess = process
-            proxyReaderJob = launch { readProcessOutput(process, "proxy") }
-
-            sendStatusUpdate("Running", "Idle")
-            true
-        } catch (e: Exception) {
-            sendErrorMessage("Failed to start proxy", e.message ?: "")
-            false
-        }
-    }
-
