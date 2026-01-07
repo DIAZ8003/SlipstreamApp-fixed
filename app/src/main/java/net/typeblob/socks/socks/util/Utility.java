@@ -8,7 +8,7 @@ import java.io.*;
 import java.util.List;
 
 import net.typeblob.socks.R;
-import net.typeblob.socks.SocksVpnService;
+import net.typeblob.socks.SlipstreamVpnService;
 import static net.typeblob.socks.socks.util.Constants.*;
 
 public class Utility {
@@ -96,7 +96,7 @@ public class Utility {
     }
 
     public static void startVpn(Context context, String dns) {
-        Intent i = new Intent(context, SocksVpnService.class)
+        Intent i = new Intent(context, SlipstreamVpnService.class)
                 .putExtra(INTENT_NAME, "profile name")
                 .putExtra(INTENT_SERVER, "127.0.0.1")
                 .putExtra(INTENT_PORT, 5201)
@@ -110,7 +110,7 @@ public class Utility {
     }
 
     public static void stopVpn(Context context) {
-        Intent i = new Intent(context, SocksVpnService.class);
+        Intent i = new Intent(context, SlipstreamVpnService.class);
         // We add an extra to tell the service we want to stop
         i.putExtra("ACTION_STOP", true);
         ContextCompat.startForegroundService(context, i);
