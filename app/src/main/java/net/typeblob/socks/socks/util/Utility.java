@@ -99,7 +99,7 @@ public class Utility {
         Intent i = new Intent(context, SocksVpnService.class)
                 .putExtra(INTENT_NAME, "profile name")
                 .putExtra(INTENT_SERVER, "127.0.0.1")
-                .putExtra(INTENT_PORT, 3080)
+                .putExtra(INTENT_PORT, 5201)
                 .putExtra(INTENT_ROUTE, "all")
                 .putExtra(INTENT_DNS, dns)
                 .putExtra(INTENT_DNS_PORT, 53)
