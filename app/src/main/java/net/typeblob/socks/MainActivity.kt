@@ -16,7 +16,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         initUI()
-        restoreProfiles()
+// restoreProfiles()  // SAFE MODE
     }
 
     private fun startCommandService() {
@@ -24,8 +24,8 @@ class MainActivity : AppCompatActivity() {
         val domainName = domainInput.text.toString().trim()
         val keyPath = keyPathInput.text.toString().trim()
 
-        if (ipList.isEmpty() || domainName.isBlank()) {
-            Toast.makeText(this, "Configuration missing", Toast.LENGTH_SHORT).show()
+        if (ipList.isEmpty() || domainName.isBlank() || !File(keyPath).exists()) {
+            Toast.makeText(this, "Complete domain, resolver and key", Toast.LENGTH_LONG).show()
             syncSwitchState(false)
             return
         }
@@ -76,10 +76,9 @@ class MainActivity : AppCompatActivity() {
             putExtra(CommandService.EXTRA_KEY_PATH, keyPath)
         }
 
-        ContextCompat.startForegroundService(this, serviceIntent)
-
-        // SAFE MODE: no Termux, no reconexión, no control externo
         Utility.startVpn(this, dns)
+
+        ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun syncSwitchState(checked: Boolean) {
