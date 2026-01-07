@@ -106,13 +106,13 @@ public class Utility {
                 .putExtra(INTENT_PER_APP, false)
                 .putExtra(INTENT_IPV6_PROXY, false);
 
-        context.startService(i);
+        ContextCompat.startForegroundService(context, i);
     }
 
     public static void stopVpn(Context context) {
         Intent i = new Intent(context, SocksVpnService.class);
         // We add an extra to tell the service we want to stop
         i.putExtra("ACTION_STOP", true);
-        context.startService(i);
+        ContextCompat.startForegroundService(context, i);
     }
 }
